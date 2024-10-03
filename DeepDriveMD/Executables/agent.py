@@ -4,6 +4,7 @@ import io, os, sys, socket
 import time
 import argparse
 import kernel as wf
+import perfdump
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Exalearn_miniapp_training')
@@ -94,4 +95,10 @@ def main():
     print("Total running time is {} seconds".format(end_time - start_time))
 
 if __name__ == '__main__':
+    perfdump.init()
+    perfdump.start_region('agent')
+    perfdump.start_profile()
     main()
+    perfdump.end_profile()
+    perfdump.end_region()
+    perfdump.finalize()

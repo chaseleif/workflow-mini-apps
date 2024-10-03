@@ -83,6 +83,8 @@ class MVP(object):
                        help='number of nodes used for simulation')
         parser.add_argument('--io_json_file', default="io_size.json",
                         help='the filename of json file for io size')
+        parser.add_argument('--env', default=None,
+                        help='an env file to source as a pre-command')
 
         args = parser.parse_args()
         self.args = args
@@ -98,11 +100,12 @@ class MVP(object):
         s = entk.Stage()
         for i in range(self.args.num_sim):
             t = entk.Task()
-            t.pre_exec = [
-                    "module use /soft/modulefiles",
-                    "module load conda/2024-04-29",
-                    "export HDF5_USE_FILE_LOCKING=FALSE"
-                    ]
+            if self.args.env:
+              t.pre_exec = [f'source {self.args.env}' ]
+            else:
+              t.pre_exec = ["module use /soft/modulefiles",
+                            'module load conda/2024-04-29']
+            t.pre_exec += ["export HDF5_USE_FILE_LOCKING=FALSE"]
             if self.args.conda_env is not None:
                 t.pre_exec.append("conda activate {}".format(self.args.conda_env))
             t.executable = 'python'
@@ -139,11 +142,12 @@ class MVP(object):
 
         s = entk.Stage()
         t = entk.Task()
-        t.pre_exec = [
-                "module use /soft/modulefiles",
-                'module load conda/2024-04-29',
-                "export HDF5_USE_FILE_LOCKING=FALSE"
-                ]
+        if self.args.env:
+          t.pre_exec = [f'source {self.args.env}' ]
+        else:
+          t.pre_exec = ["module use /soft/modulefiles",
+                        'module load conda/2024-04-29']
+        t.pre_exec += ["export HDF5_USE_FILE_LOCKING=FALSE"]
         if self.args.conda_env is not None:
             t.pre_exec.append("conda activate {}".format(self.args.conda_env))
 
@@ -188,11 +192,12 @@ class MVP(object):
 
         s = entk.Stage()
         t = entk.Task()
-        t.pre_exec = [
-                "module use /soft/modulefiles",
-                'module load conda/2024-04-29',
-                "export HDF5_USE_FILE_LOCKING=FALSE"
-                ]
+        if self.args.env:
+          t.pre_exec = [f'source {self.args.env}' ]
+        else:
+          t.pre_exec = ["module use /soft/modulefiles",
+                        'module load conda/2024-04-29']
+        t.pre_exec += ["export HDF5_USE_FILE_LOCKING=FALSE"]
         if self.args.conda_env is not None:
             t.pre_exec.append("conda activate {}".format(self.args.conda_env))
 
@@ -224,11 +229,12 @@ class MVP(object):
 
         s = entk.Stage()
         t = entk.Task()
-        t.pre_exec = [
-                "module use /soft/modulefiles",
-                'module load conda/2024-04-29',
-                "export HDF5_USE_FILE_LOCKING=FALSE"
-                ]
+        if self.args.env:
+          t.pre_exec = [f'source {self.args.env}' ]
+        else:
+          t.pre_exec = ["module use /soft/modulefiles",
+                        'module load conda/2024-04-29']
+        t.pre_exec += ["export HDF5_USE_FILE_LOCKING=FALSE"]
         if self.args.conda_env is not None:
             t.pre_exec.append("conda activate {}".format(self.args.conda_env))
 

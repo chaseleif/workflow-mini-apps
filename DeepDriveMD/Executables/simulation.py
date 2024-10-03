@@ -4,6 +4,7 @@ import os, sys, socket
 import time
 import argparse
 import kernel as wf
+import perfdump
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Exalearn_miniapp_simulation')
@@ -30,6 +31,9 @@ def main():
 
     print("Temp for Darshan, sim, PID = {}, hostname = {}".format(os.getpid(), socket.gethostname()))
     start_time = time.time()
+    perfdump.init()
+    perfdump.start_region('simulation')
+    perfdump.start_profile()
 
     args = parse_args()
     print(args)
@@ -42,7 +46,6 @@ def main():
 
     wf.generateRandomNumber(device, msz)
     wf.generateRandomNumber(device, msz)
-
     print(time.time() - start_time)
     for mi in range(args.num_step):
         elap = time.time()
@@ -60,6 +63,9 @@ def main():
     wf.writeNonMPI(args.write_size, root_path, args.instance_index)
     wf.readNonMPI(args.read_size, root_path, args.instance_index)
 
+    perfdump.end_profile()
+    perfdump.end_region()
+    perfdump.finalize()
     end_time = time.time()
     print("Total running time is {} seconds".format(end_time - start_time))
 

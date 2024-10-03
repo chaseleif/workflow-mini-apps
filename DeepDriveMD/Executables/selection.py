@@ -4,6 +4,7 @@ import os, sys, socket
 import time
 import argparse
 import kernel as wf
+import perfdump
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Exalearn_miniapp_simulation')
@@ -29,6 +30,9 @@ def main():
 
     print("Temp for Darshan, selection, PID = {}, hostname = {}".format(os.getpid(), socket.gethostname()))
     start_time = time.time()
+    perfdump.init()
+    perfdump.start_region('selection')
+    perfdump.start_profile()
 
     args = parse_args()
     print(args)
@@ -39,6 +43,9 @@ def main():
     wf.readNonMPI(args.read_size, root_path, args.instance_index)
     wf.writeNonMPI(args.write_size, root_path, args.instance_index)
 
+    perfdump.end_profile()
+    perfdump.end_region()
+    perfdump.finalize()
     end_time = time.time()
     print("Total running time is {} seconds".format(end_time - start_time))
 
