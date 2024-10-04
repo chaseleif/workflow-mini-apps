@@ -75,6 +75,7 @@ mkdir -p "$filesroot"
 rm -rf "$datadir" "$modeldir"
 #   Iterate through combinations of parameters until we have used them all
 combo=1
+iteration=0
 while args="$(./nextparams.sh $combo)" ; do
   # increment the combo number for the next iteration
   combo=$((combo+1))
@@ -92,17 +93,21 @@ while args="$(./nextparams.sh $combo)" ; do
   tracedir="${traceroot}/$arghash"
   mkdir -p "$tracedir"
   # iterate through all counter groups for this argument combination
-  # in-case, track the number of failures for this argument combination
-  failures=0
   for counters in "${countergroups[@]}" ; do
+    # the number of times we've been in this inner loop
+    iteration=$((iteration+1))
+    # if we've failed twice in a row then skip this parameter combination
+    [ -f "${tracedir}/fails" ] && \
+      [ $(wc -l "${tracedir}/fails" | cut -d' ' -f1) -eq 2 ] && \
+        break
     # get a hash of the counters
     counterhash="$(echo -n "$counters" | md5sum | cut -d' ' -f1)"
+    # skip if the expected trace file exists
+    [ -f "${tracedir}/${counterhash}.0.h5" ] && continue
     # check if it is in our legend file and add it if it isn't
     if ! grep -q "$counterhash" "$legendfile" 2>/dev/null ; then
       printf "%s\n%s\n" "$counterhash" "$counters" >> "$legendfile"
     fi
-    # skip if the expected trace file exists
-    [ -f "${tracedir}/${counterhash}.0.h5" ] && continue
     # create model and data directories
     mkdir -p "$modeldir"
     for phase in $(seq 0 $num_phases) ; do
@@ -114,24 +119,52 @@ while args="$(./nextparams.sh $combo)" ; do
     sed -i "s/THECOUNTERS/${counters}/g" "$envfile"
     sed -i "s|THETRACEDIR|${tracedir}|g" "$envfile"
     # print what we're about to do
-    echo "counters: $counters"
+    echo "${iteration}: counters: $counters"
     echo "$trialcmd"
     # run the command
     $trialcmd
+    TZ='America/Chicago' date
+    echo "waiting for child PIDs . . ."
+    wait
+    sleep 3
+    TZ='America/Chicago' date
+    echo "checking/gathering output . . ."
     # ensure our output is as expected
     if [ -f "${tracedir}/${counterhash}.0.h5" ] && \
         [ -s "${tracedir}/${counterhash}.0.h5" ] ; then
       # get the profile time from the re logs
-      ./gettime.py $(find re.* -type d -name pilot\.0000) >> "${tracedir}/times"
+      pilotdir="$(ls -d re.*)/pilot.0000"
+      if [ -d "$pilotdir" ] ; then
+        refile="agent_staging_output.0000.prof"
+        refile="$(find "$pilotdir" -type f -name "$refile")"
+        if [ -f "$refile" ] ; then
+          python3 misc/get_task_execution_time.py \
+                                  -f "$refile" >> "${tracedir}/times"
+        else
+          echo "task file $refile not found"
+        fi
+        refile="bootstrap_0.prof"
+        refile="$(find "$pilotdir" -type f -name "$refile")"
+        if [ -f "$refile" ] ; then
+          python3 misc/get_workflow_execution_time.py \
+                                  -f "$refile" >> "${tracedir}/times"
+        else
+          echo "boostrap file $refile is not valid"
+        fi
+      else
+        echo "Directory $pilotdir is not valid"
+      fi
+      #./gettime.py $(find re.* -type d -name pilot\.0000) >> "${tracedir}/times"
       echo "Success"
       fails=0
     else
       # remove the file if it was there and just empty
       rm -f "${tracedir}/${counterhash}"*
       # if we've failed twice in a row then skip this parameter combination
-      fails=$((fails+1))
-      [ "$fails" -eq 2 ] && break
+      # add a line to faillog
+      echo "1" >> "${tracedir}/fails"
     fi
+    sleep 3
     # clean up files from radical
     rm -rf re.session* ~/.radical* ~/radical.pilot.sandbox/*
     # clean up files leftover from the command
@@ -139,4 +172,3 @@ while args="$(./nextparams.sh $combo)" ; do
   done
 done
 ###
-
