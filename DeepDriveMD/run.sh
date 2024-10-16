@@ -73,9 +73,15 @@ IFS=$'\n' read -d '' -r -a countergroups < ~/papi_lists/COUNTERS
 #   Prepare filesroot directory and remove any leftover data/model directories
 mkdir -p "$filesroot"
 rm -rf "$datadir" "$modeldir"
-#   Iterate through combinations of parameters until we have used them all
+# Iterator counters for loops, outer loop=combo, inner-loop=counter
+# iteration tracks count in inner-loop
 combo=1
 iteration=0
+# Skip counters ahead to avoid wasted grep, md5sum, etc., when resuming
+[ ! -f last ] && echo "0" > last
+lastiter="$(cat last)"
+combo=$((combo+$lastiter/${#countergroups[@]}))
+iteration=$((($combo-1)*${#countergroups[@]}))
 while args="$(./nextparams.sh $combo)" ; do
   # increment the combo number for the next iteration
   combo=$((combo+1))
@@ -122,11 +128,12 @@ while args="$(./nextparams.sh $combo)" ; do
     echo "${iteration}: counters: $counters"
     echo "$trialcmd"
     # run the command
+    TZ='America/Chicago' date
     $trialcmd
     TZ='America/Chicago' date
     echo "waiting for child PIDs . . ."
     wait
-    sleep 3
+    sleep 5
     TZ='America/Chicago' date
     echo "checking/gathering output . . ."
     # ensure our output is as expected
@@ -137,6 +144,9 @@ while args="$(./nextparams.sh $combo)" ; do
       if [ -d "$pilotdir" ] ; then
         refile="agent_staging_output.0000.prof"
         refile="$(find "$pilotdir" -type f -name "$refile")"
+        if [ ! -f "$refile" ] ; then
+          refile="$(find "$pilotdir" -type f -name "agent_staging_output.*.prof")"
+        fi
         if [ -f "$refile" ] ; then
           python3 misc/get_task_execution_time.py \
                                   -f "$refile" >> "${tracedir}/times"
@@ -154,17 +164,17 @@ while args="$(./nextparams.sh $combo)" ; do
       else
         echo "Directory $pilotdir is not valid"
       fi
-      #./gettime.py $(find re.* -type d -name pilot\.0000) >> "${tracedir}/times"
       echo "Success"
-      fails=0
+      # set target for resume iteration
+      echo "$iteration" > last
     else
       # remove the file if it was there and just empty
       rm -f "${tracedir}/${counterhash}"*
       # if we've failed twice in a row then skip this parameter combination
       # add a line to faillog
-      echo "1" >> "${tracedir}/fails"
+      TZ='America/Chicago' date >> "${tracedir}/fails"
     fi
-    sleep 3
+    sleep 5
     # clean up files from radical
     rm -rf re.session* ~/.radical* ~/radical.pilot.sandbox/*
     # clean up files leftover from the command
